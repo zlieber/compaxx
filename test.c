@@ -15,7 +15,7 @@
     rc = name(); \
   }
 
-int testCalibration(const SensorData* points, short nPoints, const Calibration* expected, float tolerance) {
+int testCalibration(const Point* points, short nPoints, const Calibration* expected, float tolerance) {
   int rc = E_SUCCESS;
   CalibrationContext ctx;
 
@@ -40,9 +40,6 @@ int testCalibration(const SensorData* points, short nPoints, const Calibration* 
 
   float maxErr = fmax(fmax(fabs(cal.planeA - expected->planeA), fabs(cal.planeB - expected->planeB)), fabs(cal.planeC - expected->planeC));
   //printf("Tolerance: %f\n", (float)tolerance);
-  ASSERT_EQ(cal.planeA, expected->planeA, tolerance);
-  ASSERT_EQ(cal.planeB, expected->planeB, tolerance);
-  ASSERT_EQ(cal.planeC, expected->planeC, tolerance);
 
   // Now test RMSE
   float mse = 0.0;
@@ -52,12 +49,16 @@ int testCalibration(const SensorData* points, short nPoints, const Calibration* 
   }
   float rmse = sqrt(mse / (float)nPoints);
   printf("%f %f %f\n", rmse, maxErr, quality);
+  ASSERT_EQ(rmse, 0, tolerance);
+
+  float heading = getCompassHeading(&cal, &(cal.compassNorth));
+  ASSERT_EQ(heading, 0.0, 0.0001);
 
   return 0;
 }
 
 int testCoarseCalibrationXYplane() {
-  SensorData points[] = {
+  Point points[] = {
     { 1, 0, 0 },
     { 0, 1, 0 },
     { 0, 0, 0 },
@@ -65,7 +66,7 @@ int testCoarseCalibrationXYplane() {
   Calibration expected = {
     0.0, 0.0, 1.0, 0.0
   };
-  return testCalibration(points, sizeof(points) / sizeof(SensorData), &expected, 0.0001);
+  return testCalibration(points, sizeof(points) / sizeof(Point), &expected, 0.0001);
 }
 
 float randFloat(float from, float to) {
@@ -81,10 +82,11 @@ int testCoarseCalibrationRandomPlane() {
   // Generate points on the plane
   #define NPOINTS 36
   #define RANGE 1000
-  SensorData points[NPOINTS];
+  Point points[NPOINTS];
   int i;
   float noise[] = {
-    0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 6.0, 10.0, 15.0, 20.0, 30.0, 50.0, 80.0, 100.0, 140.0, 170.0, 200.0, 300.0, -1.0
+    0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 6.0, 10.0, 15.0, 20.0, 30.0, 50.0, 80.0, 100.0, 140.0, 170.0, 200.0, 300.0,
+    -1.0
   };
   int j = 0;
   while (noise[j] >= 0.0) {
@@ -104,9 +106,9 @@ int testCoarseCalibrationRandomPlane() {
       //printf("%f, %f, %f\n", (float)(points[i].x), (float)(points[i].y), (float)(points[i].z));
     }
     Calibration expected = {
-      a, b, c, 0.0
+      a, b, c
     };
-    float tolerance = (noise[j] == 0 ? 0.4 : log(noise[j]) / 20.0 + 0.4);
+    float tolerance = noise[j] * 2 / 3 + 2;
     printf("%f %f ", (float)(noise[j]), tolerance);
     testCalibration(points, NPOINTS, &expected, tolerance);
     j++;
@@ -150,7 +152,7 @@ int testPlaneFromThreePoints() {
   // Generate points on the plane
   #define TNPOINTS 3
   #define TRANGE 1000
-  SensorData points[TNPOINTS];
+  Point points[TNPOINTS];
   int i;
   for (i=0; i<TNPOINTS; i++) {
     float x0 = (float)(rand()) * TRANGE / (float)RAND_MAX;;

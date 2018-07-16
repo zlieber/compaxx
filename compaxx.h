@@ -13,28 +13,40 @@ typedef struct {
 } CalibrationPoint;
 
 typedef struct {
+  float x;
+  float y;
+  float z;
+} Point;
+
+typedef struct {
+  /**
+   * A plane is stored in cartesian representation (ax + by + cz + d = 0),
+   * with two extra assumptions:
+   *   1. d >= 0
+   *   2. a^2 + b^2 + c^2 + d^2 = 1
+   * This allows us to omit storing the value of d, as we can compute
+   * it from the other values.
+   */
   float planeA;
   float planeB;
   float planeC;
+  Point compassNorth;
+  Point origin;
 
   float calibrationData[MAX_CALIBRATION_POINTS];
   int pointCount;
 } Calibration;
 
 typedef struct {
-  short x;
-  short y;
-  short z;
-} SensorData;
-
-typedef struct {
-  SensorData sensorData;
+  Point sensorData;
   float magneticHeading;
 } CalibrationCtxPoint;
 
 typedef struct {
   CalibrationCtxPoint points[MAX_SENSOR_POINTS];
+  CalibrationCtxPoint finePoints[MAX_CALIBRATION_POINTS];
   int pointCount;
+  int finePointCount;
 } CalibrationContext;
 
 #define E_SUCCESS                          0
@@ -64,7 +76,7 @@ typedef struct {
  * @param compassHeading Pointer to variable to store result in.
  * @return Error code.
  */
-short getHeading(const Calibration* cal, const SensorData* sensorData, float* heading);
+short getHeading(const Calibration* cal, const Point* sensorData, float* heading);
 
 /**
  * Begins the process of calibrating the instrument.
@@ -105,7 +117,7 @@ short startCalibration(CalibrationContext* ctx);
  * a hand bearing compass.
  * @return Error code
  */
-short addCalibrationPoint(CalibrationContext* ctx, const SensorData* sensorData, const float* magneticHeading);
+short addCalibrationPoint(CalibrationContext* ctx, const Point* sensorData, const float* magneticHeading);
 
 /**
  * Finalizes the calibration process and initializes the Calibration

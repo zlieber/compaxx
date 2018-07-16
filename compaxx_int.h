@@ -5,12 +5,6 @@
 #include "compaxx.h"
 
 typedef struct {
-  float x;
-  float y;
-  float z;
-} Point;
-
-typedef struct {
   float xx;
   float xy;
   float xz;
@@ -39,10 +33,18 @@ void matrixInv(const Matrix* m, Matrix* res);
 
 void printPt(const Point* pt, const char* msg);
 
-void planeFromThreePoints(const SensorData* p1, const SensorData* p2, const SensorData* p3, Point* cartesian);
+void planeFromThreePoints(const Point* p1, const Point* p2, const Point* p3, Point* cartesian);
 
-float ptPlaneDistance(const SensorData* pt, const Calibration* plane);
+float ptPlaneDistance(const Point* pt, const Calibration* plane);
 
 void normalToCartesian(const Point* normal, const Point* pt, Point* cartesian);
+
+void crossProduct(const Point* p1, const Point* p2, Point* res);
+
+float vecLengthPt(const Point* pt);
+
+void projectPoint(const Point* pt, const Point* plane, Point* proj, float* distance);
+
+float getCompassHeading(const Calibration* cal, const Point* sensorData);
 
 #endif

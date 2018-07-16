@@ -9,7 +9,7 @@ compaxx: $(OBJ)
 	gcc -o $@ $^ -lm
 
 %.o: %.c %.h
-	gcc -o $@ -c $<
+	gcc -o $@ -g -c $<
 
 test: compaxx
 	./compaxx

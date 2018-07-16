@@ -39,13 +39,7 @@ void matrixInv(const Matrix* m, Matrix* res) {
   res->c3 = (a11 * a22 - a12 * a21) / determ;
 }
 
-void crossProduct(const Point* p1, const Point* p2, Point* res) {
-  res->x = p1->y * p2->z - p1->z * p2->y;
-  res->y = p1->z * p2->x - p1->x * p2->z;
-  res->z = p1->x * p2->y - p1->y * p2->x;
-}
-
-void planeFromThreePoints(const SensorData* p1, const SensorData* p2, const SensorData* p3, Point* cartesian) {
+void planeFromThreePoints(const Point* p1, const Point* p2, const Point* p3, Point* cartesian) {
   Point normal;
 
   Point ab = {
@@ -76,7 +70,7 @@ void planeFromThreePoints(const SensorData* p1, const SensorData* p2, const Sens
   normalToCartesian(&normal, &p, cartesian);
 }
 
-float rectangleArea(const SensorData* pt1, const SensorData* pt2, const SensorData* pt3) {
+float rectangleArea(const Point* pt1, const Point* pt2, const Point* pt3) {
   Point ab = { pt1->x - pt2->x, pt1->y - pt2->y, pt1->z - pt2->z };
   Point ac = { pt1->x - pt3->x, pt1->y - pt3->y, pt1->z - pt3->z };
   Point cp;
