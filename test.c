@@ -6,6 +6,8 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define ASSERT_EQ(a, b, err) assert(fabs(a - b) < err)
 
@@ -14,6 +16,45 @@
     printf(#name "\n"); \
     rc = name(); \
   }
+
+void getfields(const char* line, Point* pt)
+{
+  const char* tok;
+  tok = strtok((char*)line, ",");
+  pt->x = atof(tok);
+  tok = strtok(NULL, ",");
+  pt->y = atof(tok);
+  tok = strtok(NULL, ",\n");
+  pt->z = atof(tok);
+}
+
+float calibrateFromCsv(const char* fileName, Calibration* cal) {
+  FILE* stream = fopen(fileName, "r");
+
+  if (stream == NULL) {
+    printf("Cannot open: %s\n", fileName);
+    return 0.0;
+  }
+
+  CalibrationContext ctx;
+  startCalibration(&ctx);
+
+  int pointCount = 0;
+  char line[1024];
+  while (fgets(line, 1024, stream) && pointCount < MAX_SENSOR_POINTS) {
+    Point p;
+    char* tmp = strdup(line);
+    getfields(tmp, &p);
+    addCalibrationPoint(&ctx, &p, NULL);
+    pointCount++;
+    // NOTE strtok clobbers tmp
+    free(tmp);
+  }
+  fclose(stream);
+  float quality;
+  finalizeCalibration(&ctx, cal, &quality);
+  return quality;
+}
 
 int testCalibration(const Point* points, short nPoints, const Calibration* expected, float tolerance) {
   int rc = E_SUCCESS;
@@ -176,6 +217,25 @@ int testPlaneFromThreePoints() {
   return E_SUCCESS;
 }
 
+int testVectorData() {
+  const char* files[] = {
+    "./data/rot45.csv",
+    "./data/flat1.csv",
+    "./data/flat2.csv",
+    NULL
+  };
+
+  int i = 0;
+  while (files[i] != NULL) {
+    Calibration cal;
+
+    float quality = calibrateFromCsv(files[i], &cal);
+    printf("%s: Quality: %f\n", files[i], quality);
+    ASSERT_EQ(quality, 100, 10);  // At least 90%
+    i++;
+  }
+}
+
 int main(int argc, char** argv) {
   int rc = E_SUCCESS;
 
@@ -183,6 +243,7 @@ int main(int argc, char** argv) {
 
   RUNTEST(testCoarseCalibrationXYplane);
   RUNTEST(testCoarseCalibrationRandomPlane);
+  RUNTEST(testVectorData);
   RUNTEST(testPlaneFromThreePoints);
   RUNTEST(testMatrixInv);
 
