@@ -33,7 +33,7 @@ typedef struct {
   Point compassNorth;
   Point origin;
 
-  float calibrationData[MAX_CALIBRATION_POINTS];
+  CalibrationPoint calibrationData[MAX_CALIBRATION_POINTS];
   int pointCount;
 } Calibration;
 

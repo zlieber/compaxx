@@ -303,6 +303,8 @@ void projectPoint(const Point* pt, const Point* plane, Point* proj, float* dista
 }
 
 short finalizeCalibration(const CalibrationContext* ctx, Calibration* cal, float* quality) {
+  // Coarse calibration
+
   Point centroidPt;
   CovarianceMatrix covar;
   Point normal;
@@ -319,8 +321,7 @@ short finalizeCalibration(const CalibrationContext* ctx, Calibration* cal, float
   if (quality)
     *quality = 100.0 - rmse(ctx, cal) / meanLength(ctx) * 100;
 
-  // Fine calibration
-
+  // Origin and compass north for compass heading
   Point origin;
   if (ctx->finePointCount > 4) // Minimum 4 points to get the centre
     centroid(ctx->finePoints, ctx->finePointCount, &origin);
@@ -332,5 +333,14 @@ short finalizeCalibration(const CalibrationContext* ctx, Calibration* cal, float
 			    ctx->points[0].sensorData.z };
   projectPoint(&origin, &cartesian, &(cal->origin), NULL);
   projectPoint(&rawCompassNorth, &cartesian, &(cal->compassNorth), NULL);
+
+  // Fine calibration
+  int i;
+  for (i=0; i<ctx->finePointCount; i++) {
+    cal->calibrationData[i].compassHeading = getCompassHeading(cal, &(ctx->finePoints[i].sensorData));
+    cal->calibrationData[i].magneticHeading = ctx->finePoints[i].magneticHeading;
+  }
+  cal->pointCount = ctx->finePointCount;
+
   return E_SUCCESS;
 }
