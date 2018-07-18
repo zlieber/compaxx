@@ -74,25 +74,23 @@ void mulByScalar(Point* a, float scalar) {
   a->z *= scalar;
 }
 
-float floatAbs(float f) {
-  if (f >= 0.0)
-    return f;
-  else
-    return -f;
-}
-
 float floatMax(float a, float b) {
   return (a > b ? a : b);
 }
 
+float max3(float a, float b, float c) {
+  return floatMax(a, floatMax(b, c));
+}
+
+
 void normalize(Point* pt) {
   // Divide by largest value first to avoid overflow.
-  float largest = floatMax(floatMax(floatAbs(pt->x), floatAbs(pt->y)), floatAbs(pt->z));
+  float largest = max3(fabs(pt->x), fabs(pt->y), fabs(pt->z));
   pt->x /= largest;
   pt->y /= largest;
   pt->z /= largest;
 
-  float length = sqrt(pt->x * pt->x + pt->y * pt->y + pt->z * pt->z);
+  float length = sqrt(sq(pt->x) + sq(pt->y) + sq(pt->z));
   pt->x /= length;
   pt->y /= length;
   pt->z /= length;
@@ -105,7 +103,7 @@ short weightedDir(const CovarianceMatrix* covar, Point* weighted_dir) {
   float det_y = covar->xx * covar->zz - covar->xz * covar->xz;
   float det_z = covar->xx * covar->yy - covar->xy * covar->xy;
 
-  float scaling = floatMax(floatMax(floatAbs(det_x), floatAbs(det_y)), floatAbs(det_z));
+  float scaling = max3(fabs(det_x), fabs(det_y), fabs(det_z));
 
   {
     Point axis_dir = {
@@ -206,12 +204,50 @@ float getCompassHeading(const Calibration* cal, const Point* sensorData) {
   float degrees = rads / PI * 180;
   if (degrees < 0)
     degrees += 360;
-  if (degrees >= 359.99)
+  if (fabs(degrees - 360.0) < 0.01)
     degrees = 0;
   return degrees;
 }
 
 short getHeading(const Calibration* cal, const Point* sensorData, float* heading) {
+  float compassHeading = getCompassHeading(cal, sensorData);
+  float magFrom, magTo, compFrom, compTo;
+
+  int i=0;
+  while (cal->calibrationData[i].compassHeading < compassHeading && i < cal->pointCount)
+    i++;
+
+  if (i == cal->pointCount || i == 0) {
+    magFrom = cal->calibrationData[cal->pointCount - 1].magneticHeading;
+    magTo = cal->calibrationData[0].magneticHeading;
+    compFrom = cal->calibrationData[cal->pointCount - 1].compassHeading;
+    compTo = cal->calibrationData[0].compassHeading;
+  } else {
+    magFrom = cal->calibrationData[i - 1].magneticHeading;
+    magTo = cal->calibrationData[i].magneticHeading;
+    compFrom = cal->calibrationData[i - 1].compassHeading;
+    compTo = cal->calibrationData[i].compassHeading;
+  }
+
+  if (fabs(magTo - magFrom) > 180.0) {
+    if (magTo > magFrom)
+      magFrom += 360;
+    else
+      magTo += 360;
+  }
+
+  if (fabs(compTo - compFrom) > 180.0) {
+    if (compTo > compFrom)
+      compFrom += 360;
+    else
+      compTo += 360;
+  }
+
+  float proportion = (compassHeading - compFrom) / (compTo - compFrom);
+  float rawHeading = (magTo - magFrom) * proportion + magFrom;
+  if (rawHeading > 360.0)
+    rawHeading -= 360.0;
+  *heading = rawHeading;
   return E_SUCCESS;
 }
 
@@ -240,7 +276,7 @@ short addCalibrationPoint(CalibrationContext* ctx, const Point* sensorData, cons
 float ptPlaneDistance(const Point* pt, const Calibration* plane) {
   float planeD = sqrt(1.0 - plane->planeA * plane->planeA - plane->planeB * plane->planeB - plane->planeC * plane->planeC);
   return
-    floatAbs(plane->planeA * pt->x + plane->planeB * pt->y + plane->planeC * pt->z + planeD) /
+    fabs(plane->planeA * pt->x + plane->planeB * pt->y + plane->planeC * pt->z + planeD) /
     sqrt(plane->planeA * plane->planeA + plane->planeB * plane->planeB + plane->planeC * plane->planeC);
 }
 
@@ -274,7 +310,7 @@ void pointOnPlane(const Point* plane, Point* pt) {
   int maxAbs = 0.0;
   int maxIdx = -1;
   for (i=0; i<3; i++) {
-    if (floatAbs(coords[i]) > floatAbs(maxAbs)) {
+    if (fabs(coords[i]) > fabs(maxAbs)) {
       maxAbs = coords[i];
       maxIdx = i;
     }
@@ -300,6 +336,23 @@ void projectPoint(const Point* pt, const Point* plane, Point* proj, float* dista
   proj->z = pt->z + t * plane->z;
   if (distance)
     *distance = t;
+}
+
+void sortTable(CalibrationPoint* data, int n) {
+  int i, j;
+
+  for (i=0; i<n; i++) {
+    for (j=i; j<n; j++) {
+      if (data[i].compassHeading > data[j].compassHeading) {
+	float tempCH = data[i].compassHeading;
+	float tempMH = data[i].magneticHeading;
+	data[i].compassHeading = data[j].compassHeading;
+	data[i].magneticHeading = data[j].magneticHeading;
+	data[j].compassHeading = tempCH;
+	data[j].magneticHeading = tempMH;
+      }
+    }
+  }
 }
 
 short finalizeCalibration(const CalibrationContext* ctx, Calibration* cal, float* quality) {
@@ -341,6 +394,6 @@ short finalizeCalibration(const CalibrationContext* ctx, Calibration* cal, float
     cal->calibrationData[i].magneticHeading = ctx->finePoints[i].magneticHeading;
   }
   cal->pointCount = ctx->finePointCount;
-
+  sortTable(cal->calibrationData, cal->pointCount);
   return E_SUCCESS;
 }
