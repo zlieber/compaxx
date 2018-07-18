@@ -201,7 +201,14 @@ float getCompassHeading(const Calibration* cal, const Point* sensorData) {
   float det = dotProduct(&norm, &cross);
   float dot = dotProduct(&v1, &v2);
 
-  return atan2(det, dot);
+  float rads = atan2(det, dot);
+  #define PI 3.14159265
+  float degrees = rads / PI * 180;
+  if (degrees < 0)
+    degrees += 360;
+  if (degrees >= 359.99)
+    degrees = 0;
+  return degrees;
 }
 
 short getHeading(const Calibration* cal, const Point* sensorData, float* heading) {

@@ -93,6 +93,7 @@ int testCalibration(const Point* points, short nPoints, const Calibration* expec
   ASSERT_EQ(rmse, 0, tolerance);
 
   float heading = getCompassHeading(&cal, &(cal.compassNorth));
+  printf("H: %f\n", heading);
   ASSERT_EQ(heading, 0.0, 0.0001);
 
   return 0;
@@ -217,6 +218,27 @@ int testPlaneFromThreePoints() {
   return E_SUCCESS;
 }
 
+void testPoints(const Calibration* cal, const char* fileName) {
+  FILE* stream = fopen(fileName, "r");
+
+  if (stream == NULL) {
+    printf("Cannot open: %s\n", fileName);
+    return;
+  }
+  char line[1024];
+  while (fgets(line, 1024, stream)) {
+    Point p;
+    char* tmp = strdup(line);
+    getfields(tmp, &p);
+    float heading = getCompassHeading(cal, &p);
+    assert(heading >= 0 && heading <= 360);
+    //printf("%f\n", heading);
+    // NOTE strtok clobbers tmp
+    free(tmp);
+  }
+  fclose(stream);
+}
+
 int testVectorData() {
   const char* files[] = {
     "./data/rot45.csv",
@@ -232,6 +254,8 @@ int testVectorData() {
     float quality = calibrateFromCsv(files[i], &cal);
     printf("%s: Quality: %f\n", files[i], quality);
     ASSERT_EQ(quality, 100, 10);  // At least 90%
+
+    testPoints(&cal, files[i]);
     i++;
   }
 }
