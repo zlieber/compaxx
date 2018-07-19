@@ -189,7 +189,7 @@ float getCompassHeading(const Calibration* cal, const Point* sensorData) {
 
   projectPoint(sensorData, &plane, &proj, NULL);
   pointVec(&(cal->origin), &(cal->compassNorth), &v1);
-  pointVec(&cal->origin, &proj, &v2);
+  pointVec(&(cal->origin), &proj, &v2);
 
   Point cross;
   crossProduct(&v1, &v2, &cross);
@@ -394,6 +394,10 @@ short finalizeCalibration(const CalibrationContext* ctx, Calibration* cal, float
     cal->calibrationData[i].magneticHeading = ctx->finePoints[i].magneticHeading;
   }
   cal->pointCount = ctx->finePointCount;
+
+  //  for (i=0; i<cal->pointCount; i++)
+  //  printf("C: %f M: %f\n", cal->calibrationData[i].compassHeading, cal->calibrationData[i].magneticHeading);
+
   sortTable(cal->calibrationData, cal->pointCount);
   return E_SUCCESS;
 }

@@ -13,7 +13,7 @@
 
 #define RUNTEST(name) \
   if (rc == E_SUCCESS) { \
-    printf(#name "\n"); \
+    printf("------ " #name " ------\n"); \
     rc = name(); \
   }
 
@@ -93,7 +93,7 @@ int testCalibration(const Point* points, short nPoints, const Calibration* expec
   ASSERT_EQ(rmse, 0, tolerance);
 
   float heading = getCompassHeading(&cal, &(cal.compassNorth));
-  printf("H: %f\n", heading);
+  //printf("H: %f\n", heading);
   ASSERT_EQ(heading, 0.0, 0.0001);
 
   return 0;
@@ -260,6 +260,46 @@ int testVectorData() {
   }
 }
 
+void polarToCartesian(float r, float theta, float* x, float* y) {
+  #define PI 3.14159265
+  float rad = theta * PI / 180;
+  *x = r * cos(rad);
+  *y = r * sin(rad);
+}
+
+int testFineCalibration() {
+  int interval = 15; // degrees
+  float theta = 0;
+  float r = 1000;
+
+  CalibrationContext ctx;
+  startCalibration(&ctx);
+
+  while (theta < 360) {
+    Point sensorData;
+    polarToCartesian(r, theta, &(sensorData.x), &(sensorData.y));
+    sensorData.z = 0;
+    //printPt(&sensorData, "Cal point");
+    addCalibrationPoint(&ctx, &sensorData, &theta);
+    theta += interval;
+  }
+
+  Calibration cal;
+  float quality;
+  finalizeCalibration(&ctx, &cal, &quality);
+  printf("Fit quality: %f\n", quality);
+
+  theta = 350.0;
+  Point sensorData;
+  polarToCartesian(r, theta, &(sensorData.x), &(sensorData.y));
+  sensorData.z = 0;
+
+  float heading;
+  getHeading(&cal, &sensorData, &heading);
+  printf("My heading now: %f\n", heading);
+  return E_SUCCESS;
+}
+
 int main(int argc, char** argv) {
   int rc = E_SUCCESS;
 
@@ -270,6 +310,7 @@ int main(int argc, char** argv) {
   RUNTEST(testVectorData);
   RUNTEST(testPlaneFromThreePoints);
   RUNTEST(testMatrixInv);
+  RUNTEST(testFineCalibration);
 
   if (rc == E_SUCCESS)
     printf("SUCCESS\n");
